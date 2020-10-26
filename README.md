@@ -1,7 +1,7 @@
 # Introducing the AppHtml_layer gem
 
 
-    require 'apphtml'
+    require 'apphtml_layer'
 
 
     class Fun
