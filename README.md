@@ -1,3 +1,48 @@
+# Interfacing with multiples apps using the apphtml_layer gem
+
+    require 'apphtml_layer'
+
+
+    class Fun
+
+      def initialize(id)
+        @id = id
+      end
+
+      def go()
+        'go ' + @id
+      end
+
+      def hello(name)
+        'hello ' + name
+      end
+
+      def food(apples: 0, grapes: 0)
+        {apples: apples.to_i, grapes: grapes.to_i}
+      end
+
+      def connected?()
+        true
+      end
+
+    end
+
+
+    h = {
+      fun: Fun.new('123'),
+      fun2: Fun.new('456')
+    }
+    ah = AppHtmlLayer.new(h, filepath: '/home/james/tmp/fun', headings: false, debug: true)
+    ah.lookup '/fun/go' #=> '123'
+    ah.lookup '/fun2/go' #=> '456'
+
+    ah.lookup '/fun/connected?' #=> 'true'
+    ah.lookup '/fun/name?arg=Fred' #=> 'hello Fred'
+
+apphttp apphtml_layer
+
+---------------------------
+
 # Introducing the AppHtml_layer gem
 
 
