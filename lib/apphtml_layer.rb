@@ -3,33 +3,74 @@
 # file: apphtml_layer.rb
 
 require 'uri'
-require 'json'
 require 'c32'
+require 'json'
+require 'hpath'
 require 'kramdown'
 
-class AppHtmlLayer
-  using ColouredText
 
-  def initialize(app, filepath: '.', headings: false, debug: false)
-    @app, @filepath, @headings, @debug = app, filepath, headings, debug
+module HashPath
+
+  refine Hash do
+
+    def path(s)
+      Hpath.get(self, s)
+    end
+
+  end
+
+end
+
+class AppHtmlLayer
+  using HashPath
+  using ColouredText
+  
+  attr_reader :apps
+
+  def initialize(apps={}, filepath: '.', headings: false, debug: false)
+    
+    @apps = if apps.is_a? Hash
+      apps
+    else
+      {apps.class.to_s.downcase.to_sym => apps}
+    end
+    
+    @filepath, @headings, @debug = filepath, headings, debug
+    
   end
 
   def lookup(s)
 
-    if s == '/' then
+    if s[-1] == '/' then
       
       fp = File.join(@filepath, 'index.html')      
-      return (File.exists?(fp) ? File.read(fp) : default_index() )
+      
+      if File.exists?(fp) then
+        
+        return File.read(fp)
+        
+      else
+        
+        app = path(s)
+        
+        if app then
+          return default_index(app) 
+        else
+          return ['path not found', 'text/plain', '404']
+        end
+        
+      end
 
     end
    
     return [s.to_s, 'text/plain'] if s =~ /^\/\w+\.\w+/
 
-    uri = URI(s)
+    a2 = s.split('/')
+    basepath = a2[0..-2].join('/')
+    uri = URI(a2[-1])
 
-    a = uri.path.split('/')
-    a.shift
-    name, *args = a
+    name = a2[-1][-1] == '?' ? a2[-1] : uri.path
+    puts 'name: ' + name.inspect if @debug
 
     if uri.query then
 
@@ -39,14 +80,19 @@ class AppHtmlLayer
 
       puts ('h: ' + h.inspect).debug if @debug
       args = h[:arg] ? [h[:arg]] : h
-
+      puts 'args: ' + args.inspect if @debug
+      
     end  
 
-    if @app.respond_to? name.to_sym then
+    puts 's: ' + s.inspect if @debug
+    app = path(basepath)
+    puts 'app: ' + app.inspect if @debug
+    
+    if app and app.respond_to? name.to_sym then
 
       begin
         
-        method = @app.method(name.to_sym)
+        method = app.method(name.to_sym)
         
         if method.arity > 0 and  args.length <= 0 then
           
@@ -58,12 +104,23 @@ class AppHtmlLayer
         else
           
           puts ('args: ' + args.inspect).debug if @debug
-          r = args.is_a?(Array) ? method.call(*args) :  method.call(args)
+          
+          r = case args
+          when Array
+            method.call(*args) 
+          when Hash
+            args.empty? ? method.call : method.call(args)
+          else
+            method.call
+          end
           
         end
-
+        
+        puts ('name' + name.inspect) if @debug
+        
         fp = File.join(@filepath, File.basename(name) + '.html')
-
+        puts 'fp: ' + fp.inspect if @debug
+        
         content = if File.exists?(fp) then        
           render_html(fp, r)
         else
@@ -105,15 +162,17 @@ class AppHtmlLayer
 
   end
   
-  def default_index()
+  private
+  
+  def default_index(app)
     
-    a = (@app.public_methods - Object.public_methods).sort
+    a = (app.public_methods - Object.public_methods).sort
     s = a.map {|x| "* [%s](%s)" % [x,x]}.join("\n")
 
     markdown = "
 <html>
   <head>
-  <title>#{@app.class.to_s}</title>
+  <title>#{app.class.to_s}</title>
   <style>
 h1 {color: green}
 h2 {color: orange}
@@ -122,7 +181,7 @@ div {height: 60%; overflow-y: auto; width: 200px; float: left}
   </head>
 <body markdown='1'>
 
-# #{@app.class.to_s} Index
+# #{app.class.to_s} Index
 
 ## Public Methods
 
@@ -145,6 +204,16 @@ div {height: 60%; overflow-y: auto; width: 200px; float: left}
     [doc.xml(pretty: true), 'text/html']    
   end
   
+  def path(s)
+    
+    if @apps.length < 2 then      
+      @apps.path("/%s/%s" % [@apps.keys.first, s])
+    else
+      @apps.path(s)
+    end
+    
+  end
+  
   def render_html(fp, s)
     
     doc = Rexle.new(File.read fp)
@@ -156,4 +225,3 @@ div {height: 60%; overflow-y: auto; width: 200px; float: left}
   end
 
 end
-

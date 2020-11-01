@@ -1,11 +1,12 @@
 Gem::Specification.new do |s|
   s.name = 'apphtml_layer'
-  s.version = '0.1.0'
+  s.version = '0.2.0'
   s.summary = 'Add a basic HTML wrapper to your Ruby object. ' + 
       'Suitable for use with a web server.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/apphtml_layer.rb']
-  s.add_runtime_dependency('c32', '~> 0.3', '>=0.3.0')    
+  s.add_runtime_dependency('c32', '~> 0.3', '>=0.3.0')
+  s.add_runtime_dependency('hpath', '~> 0.1', '>=0.1.0')    
   s.add_runtime_dependency('kramdown', '~> 2.3', '>=2.3.0')  
   s.signing_key = '../privatekeys/apphtml_layer.pem'
   s.cert_chain  = ['gem-public_cert.pem']
